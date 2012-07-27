@@ -1,0 +1,38 @@
+name: XPBank
+main: com.agmmaverick.bukkit.XPBankPlugin
+version: 1.1.0
+author: AgmMaverick
+commands:
+    xpbank:
+        aliases: xpb
+        description: Use to deposit XP, withdraw XP, view your balance, or view your current xp.
+        usage: /<command> [deposit|withdraw|balance|current|set <radius>]
+permissions:
+  xpbank.*:
+    description: Gives access to all xpbank permissions.
+    children:
+      xpbank.deposit: true
+      xpbank.withdraw: true
+      xpbank.balance: true
+      xpbank.current: true
+      xpbank.admin: false
+
+  xpbank.deposit:
+    description: Gives permission to deposit XP.
+    default: false
+    
+  xpbank.withdraw:
+    description: Gives permission to withdraw XP.
+    default: false
+    
+  xpbank.balance:
+    description: Gives permission to view your current XP balance.
+    default: false
+    
+  xpbank.current:
+    description: Gives permission to view your current XP.
+    default: false
+    
+  xpbank.admin:
+    description: Gives permission to set the location of the bank.
+    default: op

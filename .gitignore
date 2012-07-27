@@ -1,0 +1,10 @@
+# Eclipse project
+.classpath
+.project
+.settings
+
+# Java output
+.class
+
+# Maven output dir
+target/*
