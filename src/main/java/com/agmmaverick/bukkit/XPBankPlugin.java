@@ -22,7 +22,7 @@ import org.bukkit.plugin.java.JavaPlugin;
 
 public class XPBankPlugin extends JavaPlugin {
     // Pre-compute these values since they are static
-    private static final int TOTAL_XP_FOR_15 = calcTotalXPForLevel(15);
+    private static final int TOTAL_XP_LVL_15 = calcTotalXPForLevel(15);
     private static final int TOTAL_XP_LVL_30 = calcTotalXPForLevel(30);
     
     protected Logger log = Logger.getLogger("Minecraft");
@@ -59,7 +59,16 @@ public class XPBankPlugin extends JavaPlugin {
         if (args[0].equals("deposit")) {
             doDeposit(player);
         } else if (args[0].equals("withdraw")) {
-            doWithdraw(player);
+            Integer amount = null;
+            if (args.length >= 2) {
+                try {
+                    amount = Integer.parseInt(args[1]);
+                } catch (NumberFormatException e) {
+                    player.sendMessage(ChatColor.RED + "'" + args[1] + " is not a valid integer");
+                    return false;
+                }
+            }
+            doWithdraw(player, amount);
         } else if (args[0].equals("balance")) {
             doDisplayBalance(player);
         } else if (args[0].equals("current")) {
@@ -92,7 +101,7 @@ public class XPBankPlugin extends JavaPlugin {
         saveBank();
     }
 
-    private void doWithdraw(Player player) {
+    private void doWithdraw(Player player, Integer amount) {
         if (!player.hasPermission("xpbank.withdraw")) {
             player.sendMessage(ChatColor.RED + "You do not have permission to use that command.");
         }
@@ -103,11 +112,15 @@ public class XPBankPlugin extends JavaPlugin {
         }
         
         int balance = getPlayerBalance(player);
+        int xpToWithdraw = balance;
+        if (amount != null && amount < balance) {
+            xpToWithdraw = amount;
+        }
         
-        addXPToPlayer(player, balance);
+        addXPToPlayer(player, xpToWithdraw);
         clearPlayersBalance(player);
                 
-        player.sendMessage(ChatColor.BLUE + "Withdrew: " + balance );
+        player.sendMessage(ChatColor.BLUE + "Withdrew: " + xpToWithdraw );
         displayCurrentXP(player);
         
         saveBank();
@@ -214,19 +227,10 @@ public class XPBankPlugin extends JavaPlugin {
     }
        
     private void addXPToPlayer(Player player, int xp) {
-        int level = player.getLevel();
-        int lastXp = calcXPForNextLevel(level);
-        int xpLeft = (int)(lastXp * player.getExp()) +  xp;
+        CalculateLevelResult levelResult = calcLevelFromXP(calcTotalXPForPlayer(player) + xp);
         
-        while (xpLeft > lastXp) {
-            level++;
-            xpLeft -= lastXp;
-            
-            lastXp = calcXPForNextLevel(level);
-        }
-        
-        player.setLevel(level);
-        player.setExp((float)xpLeft / (float)lastXp);
+        player.setLevel(levelResult.level);
+        player.setExp(levelResult.exp);
     }
     
     private void clearPlayerXP(Player player) {
@@ -309,14 +313,12 @@ public class XPBankPlugin extends JavaPlugin {
         if (level == 0) {
             return 0;
         }
-                
-        
         
         if (level < 16) {
             return 17 * level;
         } else if (level < 31) {
             int expLevel = level - 16;
-            return TOTAL_XP_FOR_15 + (17 * (expLevel+1)) + (int)(1.5 * (expLevel * expLevel + expLevel));
+            return TOTAL_XP_LVL_15 + (17 * (expLevel+1)) + (int)(1.5 * (expLevel * expLevel + expLevel));
         } else {
             int expLevel = level - 31;
             return TOTAL_XP_LVL_30 + (62 * (expLevel+1)) + (int)(3.5 * (expLevel * expLevel + expLevel));
@@ -326,5 +328,55 @@ public class XPBankPlugin extends JavaPlugin {
     protected static int calcTotalXPForPlayer(Player player) {
         return calcTotalXPForLevel(player.getLevel()) 
                 + (int)(player.getExp() * calcXPForNextLevel(player.getLevel()));
+    }
+    
+    protected static CalculateLevelResult calcLevelFromXP(int xp) {
+        double result;
+        if (xp <= TOTAL_XP_LVL_15) {
+            result = xp / 17.0;
+        } else if (xp <= TOTAL_XP_LVL_30) {
+            // (3 * (n^2 + n) / 2) + (17 * (n+1)) + TOTAL_XP_LVL_15 = xp
+            // 2 * xp / 3 = n^2 + n + (2 * 17 / 3 * n) + ( 2 * 17 / 3) + (2 * TOTAL_XP_LVL_15 / 3)
+            result = 16 + solveQuadraticPositive(1, (37 / 3), ((34 / 3) + ( 2 * TOTAL_XP_LVL_15 / 3) - (2 * xp / 3)));
+        } else {
+            // (7 * (n^2 + n) / 2) + (62 * (n+1)) + TOTAL_XP_LVL_30 = xp
+            // 2 * xp / 7 = n^2 + n + (2 * 62 / 7 * n) + ( 2 * 62 / 7) + (2 * TOTAL_XP_LVL_30 / 7)
+            result = 31 + solveQuadraticPositive(1, (131 / 7), ((124 / 7) + ( 2 * TOTAL_XP_LVL_30 / 7) - (2 * xp / 7)));
+        }
+        
+        int level = (int)result;
+        int nextLevel = calcXPForNextLevel(level);
+        int remainingXP = xp - calcTotalXPForLevel(level);
+                
+        return new CalculateLevelResult(level, (float)(remainingXP) / nextLevel);
+    }
+    
+    protected static double solveQuadraticPositive(double a, double b, double c) {
+        return ((-b) + Math.sqrt( (b * b) - (4 * a * c))) / (2 * a);
+    }
+    
+    public static class CalculateLevelResult {
+        public int level;
+        public float exp;
+        
+        protected CalculateLevelResult(int level, float exp) {
+            super();
+            this.level = level;
+            this.exp = exp;
+        }
+        
+        public boolean equals(Object other) {
+            if (other != null && other instanceof CalculateLevelResult) {
+                CalculateLevelResult otherResult = (CalculateLevelResult)other;
+                
+                return level == otherResult.level && exp == otherResult.exp;
+            }
+            
+            return false;
+        }
+        
+        public String toString() {
+            return "CalculateLevelResult[level=" + level + ", exp=" + exp + "]";
+        }
     }
 }

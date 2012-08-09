@@ -4,6 +4,7 @@ import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import com.agmmaverick.bukkit.XPBankPlugin.CalculateLevelResult;
 import org.bukkit.entity.Player;
 import org.junit.Test;
 
@@ -48,6 +49,14 @@ public class XPBankPluginTest {
         assertEquals(856, XPBankPlugin.calcTotalXPForPlayer(mockPlayer));
     }
 
+    @Test
+    public void testCalcLevelFromXP() {
+        assertEquals(new CalculateLevelResult(16, 0.0f), XPBankPlugin.calcLevelFromXP(272));
+        assertEquals(new CalculateLevelResult(30, 0.0f), XPBankPlugin.calcLevelFromXP(825));
+        assertEquals(new CalculateLevelResult(30, 0.5f), XPBankPlugin.calcLevelFromXP(856));
+        assertEquals(new CalculateLevelResult(50, 0.0f), XPBankPlugin.calcLevelFromXP(3395));
+    }
+    
     private void setupMockPlayer(Player mockPlayer, int level, float exp) {
         when(mockPlayer.getLevel()).thenReturn(level);
         when(mockPlayer.getExp()).thenReturn(exp);
