@@ -118,10 +118,11 @@ public class XPBankPlugin extends JavaPlugin {
         }
         
         addXPToPlayer(player, xpToWithdraw);
-        clearPlayersBalance(player);
+        removeXPFromPlayersBalance(player, xpToWithdraw);
                 
         player.sendMessage(ChatColor.BLUE + "Withdrew: " + xpToWithdraw );
         displayCurrentXP(player);
+        displayBalance(player);
         
         saveBank();
     }
@@ -220,10 +221,11 @@ public class XPBankPlugin extends JavaPlugin {
         bank.put(playerName, newXp);
     }
     
-    private void clearPlayersBalance(Player player) {
+    private void removeXPFromPlayersBalance(Player player, int xpToWithdraw) {
         String playerName = player.getName().toLowerCase();
         
-        bank.put(playerName, 0);
+        int balance = getPlayerBalance(player);
+        bank.put(playerName, Math.max(0, balance - xpToWithdraw));
     }
        
     private void addXPToPlayer(Player player, int xp) {
