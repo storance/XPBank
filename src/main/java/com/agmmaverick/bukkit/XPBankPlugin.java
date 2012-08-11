@@ -56,9 +56,19 @@ public class XPBankPlugin extends JavaPlugin {
         
         Player player  = (Player)sender;
         
-        if (args[0].equals("deposit")) {
-            doDeposit(player);
-        } else if (args[0].equals("withdraw")) {
+        if (isAction(args[0], "deposit")) {
+            Integer amount = null;
+            if (args.length >= 2) {
+                try {
+                    amount = Integer.parseInt(args[1]);
+                } catch (NumberFormatException e) {
+                    player.sendMessage(ChatColor.RED + "'" + args[1] + " is not a valid integer");
+                    return false;
+                }
+            }
+            
+            doDeposit(player, amount);
+        } else if (isAction(args[0], "withdraw")) {
             Integer amount = null;
             if (args.length >= 2) {
                 try {
@@ -69,18 +79,25 @@ public class XPBankPlugin extends JavaPlugin {
                 }
             }
             doWithdraw(player, amount);
-        } else if (args[0].equals("balance")) {
+        } else if (isAction(args[0], "balance")) {
             doDisplayBalance(player);
-        } else if (args[0].equals("current")) {
+        } else if (isAction(args[0], "current")) {
             doDisplayCurrent(player);
-        } else if (args[0].equals("set")) {
+        } else if (isAction(args[0], "set")) {
             return doBankSet(player, args);
         }
         
         return true;
     }
+    
+    private boolean isAction(String action, String name) {
+        action = action.toLowerCase();
+        name = name.toLowerCase();
+        
+        return name.startsWith(action);
+    }
 
-    private void doDeposit(Player player) {
+    private void doDeposit(Player player, Integer amount) {
         if (!player.hasPermission("xpbank.deposit")) {
             player.sendMessage(ChatColor.RED + "You do not have permission to use that command.");
         }
@@ -91,11 +108,16 @@ public class XPBankPlugin extends JavaPlugin {
         }
         
         int xp = calcTotalXPForPlayer(player);
+        int xpToDeposit = xp;
+        if (amount != null && amount < xp) {
+            xpToDeposit = amount;
+        }
         
-        addToPlayerBalance(player, xp);
-        clearPlayerXP(player);
+        addToPlayerBalance(player, xpToDeposit);
+        addXPToPlayer(player, -xpToDeposit);
         
-        player.sendMessage(ChatColor.BLUE + "Deposited: " + xp );
+        player.sendMessage(ChatColor.BLUE + "Deposited: " + xpToDeposit );
+        displayCurrentXP(player);
         displayBalance(player);
         
         saveBank();
@@ -233,11 +255,6 @@ public class XPBankPlugin extends JavaPlugin {
         
         player.setLevel(levelResult.level);
         player.setExp(levelResult.exp);
-    }
-    
-    private void clearPlayerXP(Player player) {
-        player.setLevel(0);
-        player.setExp(0.0f);
     }
     
     public void loadBank() {
